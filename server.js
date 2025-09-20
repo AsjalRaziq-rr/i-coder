@@ -4,10 +4,15 @@ import { exec } from 'child_process';
 import { promises as fs } from 'fs';
 import path from 'path';
 import axios from 'axios';
+import { Mistral } from '@mistralai/mistralai';
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 const WORKSPACE_DIR = './workspace';
+
+const mistralClient = new Mistral({
+  apiKey: 'AJDbNEloXDrECaQFQ0WePw2Tu22XkOJu'
+});
 
 app.use(cors());
 app.use(express.json());
@@ -105,71 +110,20 @@ async function getDirectoryTree(dir, basePath = '') {
 }
 
 async function processWithCodestral(message, currentFile, fileContent, files) {
-  const tools = [
-    {
-      "type": "function",
-      "function": {
-        "name": "execute_command",
-        "description": "Execute shell commands",
-        "parameters": {
-          "type": "object",
-          "properties": {
-            "command": {"type": "string", "description": "Command to execute"}
-          },
-          "required": ["command"]
-        }
-      }
-    },
-    {
-      "type": "function",
-      "function": {
-        "name": "read_file",
-        "description": "Read file contents",
-        "parameters": {
-          "type": "object",
-          "properties": {
-            "filepath": {"type": "string", "description": "Path to file"}
-          },
-          "required": ["filepath"]
-        }
-      }
-    },
-    {
-      "type": "function",
-      "function": {
-        "name": "write_file",
-        "description": "Write content to file",
-        "parameters": {
-          "type": "object",
-          "properties": {
-            "filepath": {"type": "string", "description": "Path to file"},
-            "content": {"type": "string", "description": "File content"}
-          },
-          "required": ["filepath", "content"]
-        }
-      }
-    }
-  ];
-
   try {
-    const response = await axios.post('https://api.mistral.ai/v1/chat/completions', {
+    const response = await mistralClient.chat.complete({
       model: 'codestral-latest',
       messages: [
-        {role: 'user', content: `Current file: ${currentFile || 'none'}\nFiles: ${files.join(', ')}\n\nUser: ${message}`}
+        { role: 'system', content: 'You are a helpful coding assistant with access to file operations and command execution.' },
+        { role: 'user', content: `Current file: ${currentFile || 'none'}\nFiles: ${files.join(', ')}\n\nUser: ${message}` }
       ],
-      tools,
-      temperature: 0.7,
-      max_tokens: 2048
-    }, {
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': 'Bearer AJDbNEloXDrECaQFQ0WePw2Tu22XkOJu'
-      }
+      maxTokens: 2048,
+      temperature: 0.7
     });
 
-    return response.data.choices[0].message.content || 'No response from AI';
+    return response.choices[0].message.content || 'No response from AI';
   } catch (error) {
-    console.error('Codestral API error:', error.response?.data || error.message);
+    console.error('Codestral API error:', error.message);
     return 'AI service temporarily unavailable. Please try again.';
   }
 }
