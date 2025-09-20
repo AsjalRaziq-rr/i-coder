@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Web CLI</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 20px;
+            background: #1a1a1a;
+            color: #00ff00;
+            font-family: 'Courier New', monospace;
+            height: 100vh;
+            overflow: hidden;
+        }
+        .terminal {
+            height: calc(100vh - 40px);
+            display: flex;
+            flex-direction: column;
+        }
+        .output {
+            flex: 1;
+            overflow-y: auto;
+            padding: 10px;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+        }
+        .input-line {
+            display: flex;
+            align-items: center;
+            padding: 10px;
+            border-top: 1px solid #333;
+        }
+        .prompt {
+            margin-right: 10px;
+        }
+        input {
+            flex: 1;
+            background: #1a1a1a;
+            border: 1px solid #333;
+            color: #00ff00;
+            font-family: inherit;
+            font-size: inherit;
+            outline: none;
+            padding: 5px;
+        }
+        input:focus {
+            border-color: #00ff00;
+        }
+    </style>
+</head>
+<body>
+    <div class="terminal">
+        <div class="output" id="output">Welcome to Web CLI. Type commands and press Enter to execute.\n\n</div>
+        <div class="input-line">
+            <span class="prompt">$</span>
+            <input type="text" id="commandInput" placeholder="Enter command..." autofocus>
+        </div>
+    </div>
+
+    <script>
+        const output = document.getElementById('output');
+        const input = document.getElementById('commandInput');
+
+        function addOutput(text) {
+            output.textContent += text + '\n';
+            output.scrollTop = output.scrollHeight;
+        }
+
+        async function executeCommand(command) {
+            if (!command.trim()) return;
+            
+            addOutput(`$ ${command}`);
+            
+            try {
+                const response = await fetch('/api/execute', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ command })
+                });
+                
+                const result = await response.text();
+                addOutput(result);
+            } catch (error) {
+                addOutput(`Error: ${error.message}`);
+            }
+        }
+
+        input.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                const command = input.value;
+                input.value = '';
+                executeCommand(command);
+            }
+        });
+    </script>
+</body>
+</html>
