@@ -11,7 +11,7 @@ const WORKSPACE_DIR = './workspace';
 
 const openai = new OpenAI({
   baseURL: 'https://openrouter.ai/api/v1',
-  apiKey: process.env.OPENROUTER_API_KEY || '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'
+  apiKey: process.env.OPENROUTER_API_KEY
 });
 
 app.use(cors());
