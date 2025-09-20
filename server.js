@@ -10,7 +10,7 @@ const PORT = process.env.PORT || 3000;
 const WORKSPACE_DIR = './workspace';
 
 const mistralClient = new Mistral({
-  apiKey: 'AJDbNEloXDrECaQFQ0WePw2Tu22XkOJu'
+  apiKey: process.env.MISTRAL_API_KEY || 'AJDbNEloXDrECaQFQ0WePw2Tu22XkOJu'
 });
 
 app.use(cors());
