@@ -17,6 +17,9 @@ app.use(cors());
 app.use(express.json());
 app.use(express.static('frontend'));
 
+// Handle favicon
+app.get('/favicon.ico', (req, res) => res.status(204).end());
+
 // Ensure workspace directory exists
 await fs.mkdir(WORKSPACE_DIR, { recursive: true });
 
