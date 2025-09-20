@@ -3,14 +3,15 @@ import cors from 'cors';
 import { exec } from 'child_process';
 import { promises as fs } from 'fs';
 import path from 'path';
-import { Mistral } from '@mistralai/mistralai';
+import OpenAI from 'openai';
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 const WORKSPACE_DIR = './workspace';
 
-const mistralClient = new Mistral({
-  apiKey: process.env.MISTRAL_API_KEY || 'AJDbNEloXDrECaQFQ0WePw2Tu22XkOJu'
+const openai = new OpenAI({
+  baseURL: 'https://openrouter.ai/api/v1',
+  apiKey: process.env.OPENROUTER_API_KEY || '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'
 });
 
 app.use(cors());
@@ -113,19 +114,19 @@ async function getDirectoryTree(dir, basePath = '') {
 
 async function processWithCodestral(message, currentFile, fileContent, files) {
   try {
-    const response = await mistralClient.chat.complete({
-      model: 'codestral-latest',
+    const response = await openai.chat.completions.create({
+      model: 'deepseek/deepseek-chat-v3.1:free',
       messages: [
         { role: 'system', content: 'You are a helpful coding assistant with access to file operations and command execution.' },
         { role: 'user', content: `Current file: ${currentFile || 'none'}\nFiles: ${files.join(', ')}\n\nUser: ${message}` }
       ],
-      maxTokens: 2048,
+      max_tokens: 2048,
       temperature: 0.7
     });
 
     return response.choices[0].message.content || 'No response from AI';
   } catch (error) {
-    console.error('Codestral API error:', error.message);
+    console.error('OpenRouter API error:', error.message);
     return 'AI service temporarily unavailable. Please try again.';
   }
 }
