@@ -152,22 +152,18 @@ async function processWithCodestral(message, currentFile, fileContent, files) {
   ];
 
   try {
-    const response = await axios.post('https://api.mistral.ai/v1/conversations', {
+    const response = await axios.post('https://api.mistral.ai/v1/chat/completions', {
       model: 'codestral-latest',
-      inputs: [
+      messages: [
         {role: 'user', content: `Current file: ${currentFile || 'none'}\nFiles: ${files.join(', ')}\n\nUser: ${message}`}
       ],
       tools,
-      completion_args: {
-        temperature: 0.7,
-        max_tokens: 2048,
-        top_p: 1
-      },
-      stream: false
+      temperature: 0.7,
+      max_tokens: 2048
     }, {
       headers: {
         'Content-Type': 'application/json',
-        'X-API-KEY': 'AJDbNEloXDrECaQFQ0WePw2Tu22XkOJu'
+        'Authorization': 'Bearer AJDbNEloXDrECaQFQ0WePw2Tu22XkOJu'
       }
     });
 
