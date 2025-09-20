@@ -3,7 +3,6 @@ import cors from 'cors';
 import { exec } from 'child_process';
 import { promises as fs } from 'fs';
 import path from 'path';
-import axios from 'axios';
 import { Mistral } from '@mistralai/mistralai';
 
 const app = express();
