@@ -10,10 +10,17 @@ const PORT = process.env.PORT || 3000;
 const WORKSPACE_DIR = './workspace';
 const chatHistory = [];
 
-const openai = new OpenAI({
+const groqClient = new OpenAI({
   baseURL: 'https://api.groq.com/openai/v1',
   apiKey: process.env.GROQ_API_KEY
 });
+
+const codestralClient = new OpenAI({
+  baseURL: 'https://codestral.mistral.ai/v1',
+  apiKey: process.env.CODESTRAL_API_KEY
+});
+
+let currentModel = 'groq'; // Default model
 
 app.use(cors());
 app.use(express.json());
@@ -58,12 +65,28 @@ app.get('/api/files', async (req, res) => {
   }
 });
 
+// Switch LLM model
+app.post('/api/switch-model', (req, res) => {
+  const { model } = req.body;
+  if (model === 'groq' || model === 'codestral') {
+    currentModel = model;
+    res.json({ success: true, model: currentModel });
+  } else {
+    res.status(400).json({ error: 'Invalid model. Use "groq" or "codestral"' });
+  }
+});
+
+// Get current model
+app.get('/api/current-model', (req, res) => {
+  res.json({ model: currentModel });
+});
+
 // Chat with AI
 app.post('/api/chat', async (req, res) => {
   try {
     const { message, currentFile, fileContent, files } = req.body;
     
-    const response = await processWithCodestral(message, currentFile, fileContent, files);
+    const response = await processWithAI(message, currentFile, fileContent, files);
     
     res.json({ response, filesChanged: true });
   } catch (error) {
@@ -112,7 +135,14 @@ async function getDirectoryTree(dir, basePath = '') {
   return items;
 }
 
-async function processWithCodestral(message, currentFile, fileContent, files) {
+async function processWithAI(message, currentFile, fileContent, files) {
+  const client = currentModel === 'codestral' ? codestralClient : groqClient;
+  const model = currentModel === 'codestral' ? 'codestral-latest' : 'llama-3.1-8b-instant';
+  const apiKeyEnv = currentModel === 'codestral' ? 'CODESTRAL_API_KEY' : 'GROQ_API_KEY';
+  
+  if (!process.env[apiKeyEnv]) {
+    return `I'm a coding assistant using ${currentModel.toUpperCase()}. You asked: "${message}". I need a ${apiKeyEnv} environment variable to provide AI responses.`;
+  }
   if (!process.env.GROQ_API_KEY) {
     return `I'm a coding assistant. You asked: "${message}". I can help with code, but I need a GROQ_API_KEY environment variable to provide AI responses. For now, I can see you're working on ${currentFile || 'no file'} with files: ${files.join(', ')}.`;
   }
@@ -156,8 +186,8 @@ async function processWithCodestral(message, currentFile, fileContent, files) {
       { role: 'user', content: `Current file: ${currentFile || 'none'}\nFiles: ${files.join(', ')}\n\nUser: ${message}` }
     ];
     
-    const response = await openai.chat.completions.create({
-      model: 'llama-3.1-8b-instant',
+    const response = await client.chat.completions.create({
+      model,
       messages,
       tools,
       tool_choice: 'auto',

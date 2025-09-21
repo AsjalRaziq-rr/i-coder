@@ -38,6 +38,7 @@
         .terminal-input button { background: #007acc; color: white; border: none; padding: 8px 15px; margin-left: 5px; border-radius: 4px; cursor: pointer; }
         
         .chat-header { background: #2d2d30; padding: 10px; border-bottom: 1px solid #3e3e42; display: flex; justify-content: space-between; align-items: center; }
+        .model-selector { background: #3c3c3c; border: 1px solid #555; color: white; padding: 5px; border-radius: 3px; margin-left: 10px; }
         .chat-messages { flex: 1; padding: 10px; overflow-y: auto; max-height: calc(60vh - 100px); }
         .message { margin-bottom: 10px; padding: 8px; border-radius: 4px; }
         .message.user { background: #0e639c; margin-left: 20px; }
@@ -90,8 +91,14 @@
     
     <div class="chat-panel" id="chatPanel">
         <div class="chat-header">
-            <span>AI Assistant (Codestral)</span>
-            <button onclick="toggleChat()" style="background: none; border: none; color: white; cursor: pointer;">✕</button>
+            <span>AI Assistant</span>
+            <div>
+                <select id="modelSelector" class="model-selector" onchange="switchModel()">
+                    <option value="groq">Groq (Llama)</option>
+                    <option value="codestral">Codestral</option>
+                </select>
+                <button onclick="toggleChat()" style="background: none; border: none; color: white; cursor: pointer; margin-left: 10px;">✕</button>
+            </div>
         </div>
         <div class="chat-messages" id="chatMessages"></div>
         <div class="chat-input">
@@ -150,6 +157,34 @@
             } catch (error) {
                 output.textContent += `Error: ${error.message}\n`;
                 output.scrollTop = output.scrollHeight;
+            }
+        }
+        
+        // Model switching
+        async function switchModel() {
+            const selector = document.getElementById('modelSelector');
+            const model = selector.value;
+            
+            try {
+                await fetch('/api/switch-model', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ model })
+                });
+                addMessage(`Switched to ${model.toUpperCase()} model`, 'ai');
+            } catch (error) {
+                addMessage(`Error switching model: ${error.message}`, 'ai');
+            }
+        }
+        
+        // Load current model on page load
+        async function loadCurrentModel() {
+            try {
+                const response = await fetch('/api/current-model');
+                const data = await response.json();
+                document.getElementById('modelSelector').value = data.model;
+            } catch (error) {
+                console.error('Error loading current model:', error);
             }
         }
         
@@ -318,6 +353,7 @@
         
         // Initialize
         loadFileList();
+        loadCurrentModel();
     </script>
 </body>
 </html>
