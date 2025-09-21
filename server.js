@@ -227,8 +227,8 @@ async function processWithAI(message, currentFile, fileContent, files) {
     
     return result || 'No response from AI';
   } catch (error) {
-    console.error('Groq API error:', error.message);
-    return `API Error: ${error.message}. Please check your GROQ_API_KEY environment variable.`;
+    console.error(`${currentModel} API error:`, error.message);
+    return `API Error: ${error.message}. Please check your ${apiKeyEnv} environment variable.`;
   }
 }
 
