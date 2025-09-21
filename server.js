@@ -10,8 +10,8 @@ const PORT = process.env.PORT || 3000;
 const WORKSPACE_DIR = './workspace';
 
 const openai = new OpenAI({
-  baseURL: 'https://openrouter.ai/api/v1',
-  apiKey: process.env.OPENROUTER_API_KEY
+  baseURL: 'https://api.groq.com/openai/v1',
+  apiKey: process.env.GROQ_API_KEY
 });
 
 app.use(cors());
@@ -113,9 +113,13 @@ async function getDirectoryTree(dir, basePath = '') {
 }
 
 async function processWithCodestral(message, currentFile, fileContent, files) {
+  if (!process.env.GROQ_API_KEY) {
+    return `I'm a coding assistant. You asked: "${message}". I can help with code, but I need a GROQ_API_KEY environment variable to provide AI responses. For now, I can see you're working on ${currentFile || 'no file'} with files: ${files.join(', ')}.`;
+  }
+  
   try {
     const response = await openai.chat.completions.create({
-      model: 'deepseek/deepseek-chat-v3.1:free',
+      model: 'llama-3.1-8b-instant',
       messages: [
         { role: 'system', content: 'You are a helpful coding assistant with access to file operations and command execution.' },
         { role: 'user', content: `Current file: ${currentFile || 'none'}\nFiles: ${files.join(', ')}\n\nUser: ${message}` }
@@ -126,8 +130,8 @@ async function processWithCodestral(message, currentFile, fileContent, files) {
 
     return response.choices[0].message.content || 'No response from AI';
   } catch (error) {
-    console.error('OpenRouter API error:', error.message);
-    return 'AI service temporarily unavailable. Please try again.';
+    console.error('Groq API error:', error.message);
+    return `API Error: ${error.message}. Please check your GROQ_API_KEY environment variable.`;
   }
 }
 
