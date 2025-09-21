@@ -57,15 +57,14 @@ app.get('/api/files', async (req, res) => {
   }
 });
 
-// Chat with Codestral
+// Chat with AI
 app.post('/api/chat', async (req, res) => {
   try {
     const { message, currentFile, fileContent, files } = req.body;
     
-    // Simple response for now - replace with actual Codestral API
     const response = await processWithCodestral(message, currentFile, fileContent, files);
     
-    res.json({ response });
+    res.json({ response, filesChanged: true });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
@@ -117,22 +116,95 @@ async function processWithCodestral(message, currentFile, fileContent, files) {
     return `I'm a coding assistant. You asked: "${message}". I can help with code, but I need a GROQ_API_KEY environment variable to provide AI responses. For now, I can see you're working on ${currentFile || 'no file'} with files: ${files.join(', ')}.`;
   }
   
+  const tools = [
+    {
+      type: 'function',
+      function: {
+        name: 'create_file',
+        description: 'Create a new file with content',
+        parameters: {
+          type: 'object',
+          properties: {
+            filename: { type: 'string', description: 'Name of the file to create' },
+            content: { type: 'string', description: 'Content of the file' }
+          },
+          required: ['filename', 'content']
+        }
+      }
+    },
+    {
+      type: 'function',
+      function: {
+        name: 'execute_command',
+        description: 'Execute a shell command',
+        parameters: {
+          type: 'object',
+          properties: {
+            command: { type: 'string', description: 'Command to execute' }
+          },
+          required: ['command']
+        }
+      }
+    }
+  ];
+  
   try {
     const response = await openai.chat.completions.create({
       model: 'llama-3.1-8b-instant',
       messages: [
-        { role: 'system', content: 'You are a helpful coding assistant with access to file operations and command execution.' },
+        { role: 'system', content: 'You are a helpful coding assistant. Use the provided tools to create files and execute commands when needed.' },
         { role: 'user', content: `Current file: ${currentFile || 'none'}\nFiles: ${files.join(', ')}\n\nUser: ${message}` }
       ],
+      tools,
+      tool_choice: 'auto',
       max_tokens: 2048,
       temperature: 0.7
     });
 
-    return response.choices[0].message.content || 'No response from AI';
+    const aiMessage = response.choices[0].message;
+    
+    if (aiMessage.tool_calls) {
+      let result = aiMessage.content || '';
+      
+      for (const toolCall of aiMessage.tool_calls) {
+        const { name, arguments: args } = toolCall.function;
+        const params = JSON.parse(args);
+        
+        if (name === 'create_file') {
+          await createFileFromAI(params.filename, params.content);
+          result += `\n\nCreated file: ${params.filename}`;
+        } else if (name === 'execute_command') {
+          const output = await executeCommandFromAI(params.command);
+          result += `\n\nExecuted: ${params.command}\nOutput: ${output}`;
+        }
+      }
+      
+      return result;
+    }
+
+    return aiMessage.content || 'No response from AI';
   } catch (error) {
     console.error('Groq API error:', error.message);
     return `API Error: ${error.message}. Please check your GROQ_API_KEY environment variable.`;
   }
+}
+
+async function createFileFromAI(filename, content) {
+  try {
+    const fullPath = path.join(WORKSPACE_DIR, filename);
+    await fs.mkdir(path.dirname(fullPath), { recursive: true });
+    await fs.writeFile(fullPath, content);
+  } catch (error) {
+    console.error('Error creating file:', error);
+  }
+}
+
+async function executeCommandFromAI(command) {
+  return new Promise((resolve) => {
+    exec(command, { cwd: WORKSPACE_DIR }, (error, stdout, stderr) => {
+      resolve(stdout + stderr || 'Command completed');
+    });
+  });
 }
 
 app.listen(PORT, () => {
