@@ -46,6 +46,17 @@ app.post('/api/files', async (req, res) => {
   }
 });
 
+app.delete('/api/files/*', async (req, res) => {
+  try {
+    const filePath = req.params[0];
+    const fullPath = path.join(WORKSPACE_DIR, filePath);
+    await fs.unlink(fullPath);
+    res.json({ success: true });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 app.get('/api/files/*', async (req, res) => {
   try {
     const filePath = req.params[0];

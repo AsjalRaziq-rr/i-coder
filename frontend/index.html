@@ -49,8 +49,10 @@
         .chat-input button { background: #007acc; color: white; border: none; padding: 8px 15px; margin-left: 5px; border-radius: 4px; cursor: pointer; }
         
         .file-explorer { width: 250px; background: #252526; border-right: 1px solid #3e3e42; padding: 10px; overflow-y: auto; }
-        .file-item { padding: 5px; cursor: pointer; border-radius: 3px; }
+        .file-item { padding: 5px; cursor: pointer; border-radius: 3px; display: flex; justify-content: space-between; align-items: center; }
         .file-item:hover { background: #2a2d2e; }
+        .delete-btn { background: #dc3545; color: white; border: none; padding: 2px 6px; border-radius: 3px; cursor: pointer; font-size: 12px; }
+        .delete-btn:hover { background: #c82333; }
     </style>
 </head>
 <body>
@@ -264,12 +266,28 @@
                     const div = document.createElement('div');
                     div.className = 'file-item';
                     div.style.paddingLeft = (indent * 15) + 'px';
-                    div.textContent = file.name;
-                    div.onclick = () => {
+                    
+                    const nameSpan = document.createElement('span');
+                    nameSpan.textContent = file.name;
+                    nameSpan.onclick = () => {
                         if (file.type === 'file') {
                             loadFile(file.path);
                         }
                     };
+                    
+                    div.appendChild(nameSpan);
+                    
+                    if (file.type === 'file') {
+                        const deleteBtn = document.createElement('button');
+                        deleteBtn.className = 'delete-btn';
+                        deleteBtn.textContent = '×';
+                        deleteBtn.onclick = (e) => {
+                            e.stopPropagation();
+                            deleteFile(file.path);
+                        };
+                        div.appendChild(deleteBtn);
+                    }
+                    
                     container.appendChild(div);
                     
                     if (file.children) {
@@ -279,6 +297,17 @@
             }
             
             renderFiles(fileList);
+        }
+        
+        async function deleteFile(filePath) {
+            if (!confirm(`Delete ${filePath}?`)) return;
+            
+            try {
+                await fetch(`/api/files/${filePath}`, { method: 'DELETE' });
+                loadFileList();
+            } catch (error) {
+                alert('Error deleting file: ' + error.message);
+            }
         }
         
         async function loadFile(filePath) {
