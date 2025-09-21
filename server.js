@@ -179,8 +179,8 @@ async function processWithAI(message, currentFile, fileContent, files) {
   
   try {
     const messages = [
-      { role: 'system', content: 'You are a helpful coding assistant with access to file creation ande create_file and execute_command tools. For HTML files, use "python3 -m http.server 8000" or "npx serve ." to start a web server. For opening files, suggest viewing them in a browser at the server URL.' },
- command execution tools. When users ask you to create files, build apps, or run code, you MUST use th      ...chatHistory,
+      { role: 'system', content: 'You are a helpful coding assistant with access to file creation and command execution tools. When users ask you to create files, build apps, or run code, you MUST use the create_file and execute_command tools. For HTML files, use python3 -m http.server 8000 to start a web server.' },
+      ...chatHistory,
       { role: 'user', content: `Current file: ${currentFile || 'none'}\nFiles: ${files.join(', ')}\n\nUser: ${message}` }
     ];
     
