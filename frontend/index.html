@@ -22,10 +22,20 @@
         .editor-container { flex: 1; position: relative; }
         .CodeMirror { height: 100%; font-size: 14px; }
         
-        .chat-toggle { position: fixed; bottom: 20px; right: 20px; background: #007acc; color: white; border: none; padding: 12px; border-radius: 50%; cursor: pointer; z-index: 1000; }
+        .terminal-toggle { position: fixed; bottom: 20px; right: 20px; background: #007acc; color: white; border: none; padding: 12px; border-radius: 50%; cursor: pointer; z-index: 1000; }
+        .chat-toggle { position: fixed; bottom: 20px; right: 80px; background: #28a745; color: white; border: none; padding: 12px; border-radius: 50%; cursor: pointer; z-index: 1000; }
+        
+        .terminal-panel { position: fixed; bottom: 0; left: 0; right: 0; height: 0; background: #1a1a1a; border-top: 1px solid #3e3e42; transition: height 0.3s ease; overflow: hidden; z-index: 998; }
+        .terminal-panel.open { height: 40vh; }
         
         .chat-panel { position: fixed; bottom: 0; right: 0; width: 400px; height: 0; background: #252526; border-left: 1px solid #3e3e42; transition: height 0.3s ease; overflow: hidden; z-index: 999; }
         .chat-panel.open { height: 60vh; }
+        
+        .terminal-header { background: #2d2d30; padding: 10px; border-bottom: 1px solid #3e3e42; display: flex; justify-content: space-between; align-items: center; }
+        .terminal-content { flex: 1; padding: 10px; overflow-y: auto; max-height: calc(40vh - 100px); font-family: 'Courier New', monospace; color: #00ff00; }
+        .terminal-input { display: flex; padding: 10px; border-top: 1px solid #3e3e42; }
+        .terminal-input input { flex: 1; background: #3c3c3c; border: 1px solid #555; color: #00ff00; padding: 8px; border-radius: 4px; font-family: 'Courier New', monospace; }
+        .terminal-input button { background: #007acc; color: white; border: none; padding: 8px 15px; margin-left: 5px; border-radius: 4px; cursor: pointer; }
         
         .chat-header { background: #2d2d30; padding: 10px; border-bottom: 1px solid #3e3e42; display: flex; justify-content: space-between; align-items: center; }
         .chat-messages { flex: 1; padding: 10px; overflow-y: auto; max-height: calc(60vh - 100px); }
@@ -60,7 +70,23 @@
         </div>
     </div>
     
+    <button class="terminal-toggle" onclick="toggleTerminal()">⚡</button>
     <button class="chat-toggle" onclick="toggleChat()">💬</button>
+    
+    <div class="terminal-panel" id="terminalPanel">
+        <div class="terminal-header">
+            <span>Terminal</span>
+            <button onclick="toggleTerminal()" style="background: none; border: none; color: white; cursor: pointer;">✕</button>
+        </div>
+        <div class="terminal-content" id="terminalOutput">Welcome to Terminal. Type commands and press Enter to execute.
+
+</div>
+        <div class="terminal-input">
+            <span style="color: #00ff00; margin-right: 10px;">$</span>
+            <input type="text" id="terminalInput" placeholder="Enter command..." onkeypress="handleTerminalKeypress(event)">
+            <button onclick="executeTerminalCommand()">Run</button>
+        </div>
+    </div>
     
     <div class="chat-panel" id="chatPanel">
         <div class="chat-header">
@@ -88,6 +114,44 @@
             tabSize: 2,
             indentWithTabs: false
         });
+        
+        // Terminal functionality
+        function toggleTerminal() {
+            const panel = document.getElementById('terminalPanel');
+            panel.classList.toggle('open');
+        }
+        
+        function handleTerminalKeypress(event) {
+            if (event.key === 'Enter') {
+                executeTerminalCommand();
+            }
+        }
+        
+        async function executeTerminalCommand() {
+            const input = document.getElementById('terminalInput');
+            const output = document.getElementById('terminalOutput');
+            const command = input.value.trim();
+            
+            if (!command) return;
+            
+            output.textContent += `$ ${command}\n`;
+            input.value = '';
+            
+            try {
+                const response = await fetch('/api/execute', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ command })
+                });
+                
+                const result = await response.text();
+                output.textContent += result + '\n';
+                output.scrollTop = output.scrollHeight;
+            } catch (error) {
+                output.textContent += `Error: ${error.message}\n`;
+                output.scrollTop = output.scrollHeight;
+            }
+        }
         
         // Chat functionality
         function toggleChat() {
