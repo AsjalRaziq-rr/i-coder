@@ -25,6 +25,7 @@ let currentModel = 'groq'; // Default model
 app.use(cors());
 app.use(express.json());
 app.use(express.static('frontend'));
+app.use('/workspace', express.static(WORKSPACE_DIR));
 
 // Handle favicon
 app.get('/favicon.ico', (req, res) => res.status(204).end());
@@ -179,7 +180,7 @@ async function processWithAI(message, currentFile, fileContent, files) {
   
   try {
     const messages = [
-      { role: 'system', content: 'You are a helpful coding assistant with access to file creation and command execution tools. When users ask you to create files, build apps, or run code, you MUST use the create_file and execute_command tools. For HTML files, use python3 -m http.server 8000 to start a web server.' },
+      { role: 'system', content: 'You are a helpful coding assistant with access to file creation and command execution tools. When users ask you to create files, build apps, or run code, you MUST use the create_file and execute_command tools. HTML files are automatically served at /workspace/filename.html - tell users to visit that URL.' },
       ...chatHistory,
       { role: 'user', content: `Current file: ${currentFile || 'none'}\nFiles: ${files.join(', ')}\n\nUser: ${message}` }
     ];
