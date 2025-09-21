@@ -8,6 +8,7 @@ import OpenAI from 'openai';
 const app = express();
 const PORT = process.env.PORT || 3000;
 const WORKSPACE_DIR = './workspace';
+const chatHistory = [];
 
 const openai = new OpenAI({
   baseURL: 'https://api.groq.com/openai/v1',
@@ -149,12 +150,15 @@ async function processWithCodestral(message, currentFile, fileContent, files) {
   ];
   
   try {
+    const messages = [
+      { role: 'system', content: 'You are a helpful coding assistant. Use the provided tools to create files and execute commands when needed.' },
+      ...chatHistory,
+      { role: 'user', content: `Current file: ${currentFile || 'none'}\nFiles: ${files.join(', ')}\n\nUser: ${message}` }
+    ];
+    
     const response = await openai.chat.completions.create({
       model: 'llama-3.1-8b-instant',
-      messages: [
-        { role: 'system', content: 'You are a helpful coding assistant. Use the provided tools to create files and execute commands when needed.' },
-        { role: 'user', content: `Current file: ${currentFile || 'none'}\nFiles: ${files.join(', ')}\n\nUser: ${message}` }
-      ],
+      messages,
       tools,
       tool_choice: 'auto',
       max_tokens: 2048,
@@ -163,9 +167,12 @@ async function processWithCodestral(message, currentFile, fileContent, files) {
 
     const aiMessage = response.choices[0].message;
     
+    // Add user message to history
+    chatHistory.push({ role: 'user', content: message });
+    
+    let result = aiMessage.content || '';
+    
     if (aiMessage.tool_calls) {
-      let result = aiMessage.content || '';
-      
       for (const toolCall of aiMessage.tool_calls) {
         const { name, arguments: args } = toolCall.function;
         const params = JSON.parse(args);
@@ -178,11 +185,17 @@ async function processWithCodestral(message, currentFile, fileContent, files) {
           result += `\n\nExecuted: ${params.command}\nOutput: ${output}`;
         }
       }
-      
-      return result;
     }
-
-    return aiMessage.content || 'No response from AI';
+    
+    // Add AI response to history
+    chatHistory.push({ role: 'assistant', content: result });
+    
+    // Keep only last 20 messages to prevent memory issues
+    if (chatHistory.length > 20) {
+      chatHistory.splice(0, chatHistory.length - 20);
+    }
+    
+    return result || 'No response from AI';
   } catch (error) {
     console.error('Groq API error:', error.message);
     return `API Error: ${error.message}. Please check your GROQ_API_KEY environment variable.`;
