@@ -143,9 +143,7 @@ async function processWithAI(message, currentFile, fileContent, files) {
   if (!process.env[apiKeyEnv]) {
     return `I'm a coding assistant using ${currentModel.toUpperCase()}. You asked: "${message}". I need a ${apiKeyEnv} environment variable to provide AI responses.`;
   }
-  if (!process.env.GROQ_API_KEY) {
-    return `I'm a coding assistant. You asked: "${message}". I can help with code, but I need a GROQ_API_KEY environment variable to provide AI responses. For now, I can see you're working on ${currentFile || 'no file'} with files: ${files.join(', ')}.`;
-  }
+
   
   const tools = [
     {
@@ -181,7 +179,7 @@ async function processWithAI(message, currentFile, fileContent, files) {
   
   try {
     const messages = [
-      { role: 'system', content: 'You are a helpful coding assistant. Use the provided tools to create files and execute commands when needed.' },
+      { role: 'system', content: 'You are a helpful coding assistant with access to file creation and command execution tools. When users ask you to create files, build apps, or run code, you MUST use the create_file and execute_command tools. Always create the requested files and execute commands as needed.' },
       ...chatHistory,
       { role: 'user', content: `Current file: ${currentFile || 'none'}\nFiles: ${files.join(', ')}\n\nUser: ${message}` }
     ];
