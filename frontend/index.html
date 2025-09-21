@@ -147,7 +147,7 @@
             input.value = '';
             
             try {
-                const response = await fetch('/api/execute', {
+                const response = await fetch('/api/terminal', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ command })
@@ -277,16 +277,14 @@
                     
                     div.appendChild(nameSpan);
                     
-                    if (file.type === 'file') {
-                        const deleteBtn = document.createElement('button');
-                        deleteBtn.className = 'delete-btn';
-                        deleteBtn.textContent = '×';
-                        deleteBtn.onclick = (e) => {
-                            e.stopPropagation();
-                            deleteFile(file.path);
-                        };
-                        div.appendChild(deleteBtn);
-                    }
+                    const deleteBtn = document.createElement('button');
+                    deleteBtn.className = 'delete-btn';
+                    deleteBtn.textContent = '×';
+                    deleteBtn.onclick = (e) => {
+                        e.stopPropagation();
+                        deleteFile(file.path);
+                    };
+                    div.appendChild(deleteBtn);
                     
                     container.appendChild(div);
                     
@@ -306,7 +304,7 @@
                 await fetch(`/api/files/${filePath}`, { method: 'DELETE' });
                 loadFileList();
             } catch (error) {
-                alert('Error deleting file: ' + error.message);
+                alert('Error deleting: ' + error.message);
             }
         }
         

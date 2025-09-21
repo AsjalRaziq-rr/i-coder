@@ -50,7 +50,14 @@ app.delete('/api/files/*', async (req, res) => {
   try {
     const filePath = req.params[0];
     const fullPath = path.join(WORKSPACE_DIR, filePath);
-    await fs.unlink(fullPath);
+    const stat = await fs.stat(fullPath);
+    
+    if (stat.isDirectory()) {
+      await fs.rmdir(fullPath, { recursive: true });
+    } else {
+      await fs.unlink(fullPath);
+    }
+    
     res.json({ success: true });
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -108,6 +115,16 @@ app.post('/api/chat', async (req, res) => {
 
 // Execute commands
 app.post('/api/execute', (req, res) => {
+  const { command } = req.body;
+  
+  exec(command, { cwd: WORKSPACE_DIR }, (error, stdout, stderr) => {
+    const output = stdout + stderr;
+    res.send(output || 'Command completed');
+  });
+});
+
+// Terminal execute (same as above but for terminal panel)
+app.post('/api/terminal', (req, res) => {
   const { command } = req.body;
   
   exec(command, { cwd: WORKSPACE_DIR }, (error, stdout, stderr) => {
