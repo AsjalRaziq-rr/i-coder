@@ -24,6 +24,14 @@ let currentModel = 'groq'; // Default model
 
 app.use(cors());
 app.use(express.json());
+
+// WebContainer requires cross-origin isolation
+app.use((req, res, next) => {
+  res.setHeader('Cross-Origin-Embedder-Policy', 'require-corp');
+  res.setHeader('Cross-Origin-Opener-Policy', 'same-origin');
+  next();
+});
+
 app.use(express.static('frontend'));
 app.use('/workspace', express.static(WORKSPACE_DIR));
 
