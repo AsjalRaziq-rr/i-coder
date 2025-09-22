@@ -147,19 +147,70 @@
             output.textContent += `$ ${command}\n`;
             input.value = '';
             
-            try {
-                const response = await fetch('/api/terminal', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ command })
-                });
-                
-                const result = await response.text();
-                output.textContent += result + '\n';
-                output.scrollTop = output.scrollHeight;
-            } catch (error) {
-                output.textContent += `Error: ${error.message}\n`;
-                output.scrollTop = output.scrollHeight;
+            // Check if it's a dev server command
+            const isDevServer = command.includes('npm start') || 
+                               command.includes('http.server') || 
+                               command.includes('serve') ||
+                               command.includes('python -m http.server') ||
+                               command.includes('python3 -m http.server');
+            
+            if (isDevServer) {
+                try {
+                    output.textContent += 'Starting dev server in WebContainer...\n';
+                    
+                    const { WebContainer } = await import('https://unpkg.com/@webcontainer/api@latest/dist/index.js');
+                    const webcontainer = await WebContainer.boot();
+                    
+                    // Copy current files to WebContainer
+                    const filesResponse = await fetch('/api/files');
+                    const { files } = await filesResponse.json();
+                    
+                    // Mount files in WebContainer
+                    const fileTree = {};
+                    for (const file of files) {
+                        if (file.type === 'file') {
+                            const response = await fetch(`/api/files/${file.path}`);
+                            const { content } = await response.json();
+                            fileTree[file.path] = { file: { contents: content } };
+                        }
+                    }
+                    
+                    await webcontainer.mount(fileTree);
+                    
+                    // Start dev server
+                    if (command.includes('npm start')) {
+                        await webcontainer.spawn('npm', ['start']);
+                    } else {
+                        await webcontainer.spawn('python3', ['-m', 'http.server', '8000']);
+                    }
+                    
+                    // Show WebContainer URL
+                    webcontainer.on('server-ready', (port, url) => {
+                        output.textContent += `Server running at: ${url}\n`;
+                        output.textContent += `Click to open: ${url}\n`;
+                        output.scrollTop = output.scrollHeight;
+                    });
+                    
+                } catch (error) {
+                    output.textContent += `WebContainer Error: ${error.message}\n`;
+                    output.scrollTop = output.scrollHeight;
+                }
+            } else {
+                // Regular server-side command
+                try {
+                    const response = await fetch('/api/terminal', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ command })
+                    });
+                    
+                    const result = await response.text();
+                    output.textContent += result + '\n';
+                    output.scrollTop = output.scrollHeight;
+                } catch (error) {
+                    output.textContent += `Error: ${error.message}\n`;
+                    output.scrollTop = output.scrollHeight;
+                }
             }
         }
         
