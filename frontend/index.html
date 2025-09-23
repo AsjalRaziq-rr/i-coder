@@ -10,25 +10,28 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/mode/python/python.min.js"></script>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
-        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #1e1e1e; color: #fff; height: 100vh; overflow: hidden; }
+        body { font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #0d1117; color: #f0f6fc; height: 100vh; overflow: hidden; }
         
         .container { display: flex; height: 100vh; }
         .editor-panel { flex: 1; display: flex; flex-direction: column; }
-        .toolbar { background: #2d2d30; padding: 10px; border-bottom: 1px solid #3e3e42; }
-        .file-tabs { display: flex; gap: 5px; }
-        .tab { background: #3c3c3c; padding: 8px 15px; border-radius: 4px 4px 0 0; cursor: pointer; border: 1px solid #555; }
-        .tab.active { background: #1e1e1e; border-bottom: 1px solid #1e1e1e; }
+        .toolbar { background: #161b22; padding: 12px; border-bottom: 1px solid #30363d; box-shadow: 0 1px 3px rgba(0,0,0,0.3); }
+        .file-tabs { display: flex; gap: 2px; }
+        .tab { background: #21262d; padding: 10px 16px; border-radius: 6px 6px 0 0; cursor: pointer; border: 1px solid #30363d; transition: all 0.2s ease; font-weight: 500; }
+        .tab.active { background: #0d1117; border-bottom: 1px solid #0d1117; color: #58a6ff; }
+        .tab:hover:not(.active) { background: #30363d; }
         
         .editor-container { flex: 1; position: relative; }
         .CodeMirror { height: 100%; font-size: 14px; }
         
-        .terminal-toggle { position: fixed; bottom: 20px; right: 20px; background: #007acc; color: white; border: none; padding: 12px; border-radius: 50%; cursor: pointer; z-index: 1000; }
-        .chat-toggle { position: fixed; bottom: 20px; right: 80px; background: #28a745; color: white; border: none; padding: 12px; border-radius: 50%; cursor: pointer; z-index: 1000; }
+        .terminal-toggle { position: fixed; bottom: 24px; right: 24px; background: linear-gradient(135deg, #238636, #2ea043); color: white; border: none; padding: 14px; border-radius: 50%; cursor: pointer; z-index: 1000; box-shadow: 0 4px 12px rgba(35, 134, 54, 0.4); transition: all 0.2s ease; }
+        .terminal-toggle:hover { transform: translateY(-2px); box-shadow: 0 6px 16px rgba(35, 134, 54, 0.5); }
+        .chat-toggle { position: fixed; bottom: 24px; right: 88px; background: linear-gradient(135deg, #1f6feb, #388bfd); color: white; border: none; padding: 14px; border-radius: 50%; cursor: pointer; z-index: 1000; box-shadow: 0 4px 12px rgba(31, 111, 235, 0.4); transition: all 0.2s ease; }
+        .chat-toggle:hover { transform: translateY(-2px); box-shadow: 0 6px 16px rgba(31, 111, 235, 0.5); }
         
-        .terminal-panel { position: fixed; bottom: 0; left: 0; right: 0; height: 0; background: #1a1a1a; border-top: 1px solid #3e3e42; transition: height 0.3s ease; overflow: hidden; z-index: 998; }
+        .terminal-panel { position: fixed; bottom: 0; left: 0; right: 0; height: 0; background: #0d1117; border-top: 1px solid #30363d; transition: height 0.3s ease; overflow: hidden; z-index: 998; box-shadow: 0 -4px 12px rgba(0,0,0,0.3); }
         .terminal-panel.open { height: 40vh; }
         
-        .chat-panel { position: fixed; bottom: 0; right: 0; width: 400px; height: 0; background: #252526; border-left: 1px solid #3e3e42; transition: height 0.3s ease; overflow: hidden; z-index: 999; }
+        .chat-panel { position: fixed; bottom: 0; right: 0; width: 420px; height: 0; background: #161b22; border-left: 1px solid #30363d; transition: height 0.3s ease; overflow: hidden; z-index: 999; box-shadow: -4px 0 12px rgba(0,0,0,0.3); }
         .chat-panel.open { height: 60vh; }
         
         .terminal-header { background: #2d2d30; padding: 10px; border-bottom: 1px solid #3e3e42; display: flex; justify-content: space-between; align-items: center; }
@@ -49,16 +52,17 @@
         .chat-input input { flex: 1; background: #3c3c3c; border: 1px solid #555; color: white; padding: 8px; border-radius: 4px; }
         .chat-input button { background: #007acc; color: white; border: none; padding: 8px 15px; margin-left: 5px; border-radius: 4px; cursor: pointer; }
         
-        .file-explorer { width: 250px; background: #252526; border-right: 1px solid #3e3e42; padding: 10px; overflow-y: auto; }
-        .file-item { padding: 5px; cursor: pointer; border-radius: 3px; display: flex; justify-content: space-between; align-items: center; }
-        .file-item:hover { background: #2a2d2e; }
-        .delete-btn { background: #dc3545; color: white; border: none; padding: 2px 6px; border-radius: 3px; cursor: pointer; font-size: 12px; }
-        .delete-btn:hover { background: #c82333; }
+        .file-explorer { width: 280px; background: #161b22; border-right: 1px solid #30363d; padding: 16px; overflow-y: auto; }
+        .file-explorer h3 { color: #f0f6fc; font-weight: 600; margin-bottom: 12px; font-size: 14px; }
+        .file-item { padding: 8px 12px; cursor: pointer; border-radius: 6px; display: flex; justify-content: space-between; align-items: center; transition: all 0.2s ease; }
+        .file-item:hover { background: #21262d; }
+        .delete-btn { background: #da3633; color: white; border: none; padding: 4px 8px; border-radius: 4px; cursor: pointer; font-size: 11px; opacity: 0.8; transition: all 0.2s ease; }
+        .delete-btn:hover { background: #f85149; opacity: 1; }
         
-        .preview-panel { position: fixed; top: 0; right: 0; width: 0; height: 100vh; background: white; border-left: 1px solid #3e3e42; transition: width 0.3s ease; overflow: hidden; z-index: 1001; }
+        .preview-panel { position: fixed; top: 0; right: 0; width: 0; height: 100vh; background: #0d1117; border-left: 1px solid #30363d; transition: width 0.3s ease; overflow: hidden; z-index: 1001; box-shadow: -4px 0 12px rgba(0,0,0,0.3); }
         .preview-panel.open { width: 50vw; }
-        .preview-header { background: #2d2d30; padding: 10px; border-bottom: 1px solid #3e3e42; display: flex; justify-content: space-between; align-items: center; color: white; }
-        .preview-content { width: 100%; height: calc(100vh - 50px); border: none; }
+        .preview-header { background: #161b22; padding: 12px 16px; border-bottom: 1px solid #30363d; display: flex; justify-content: space-between; align-items: center; color: #f0f6fc; font-weight: 600; }
+        .preview-content { width: 100%; height: calc(100vh - 60px); border: none; background: white; }
     </style>
 </head>
 <body>
@@ -66,8 +70,8 @@
         <div class="file-explorer">
             <h3>Files</h3>
             <div id="fileList"></div>
-            <button onclick="createFile()" style="margin-top: 10px; background: #007acc; color: white; border: none; padding: 5px 10px; border-radius: 3px; cursor: pointer;">New File</button>
-            <button onclick="previewApp()" style="margin-top: 5px; background: #28a745; color: white; border: none; padding: 5px 10px; border-radius: 3px; cursor: pointer; width: 100%;">🔍 Preview App</button>
+            <button onclick="createFile()" style="margin-top: 12px; background: linear-gradient(135deg, #1f6feb, #388bfd); color: white; border: none; padding: 8px 12px; border-radius: 6px; cursor: pointer; font-weight: 500; transition: all 0.2s ease; width: 100%;">+ New File</button>
+            <button onclick="previewApp()" style="margin-top: 8px; background: linear-gradient(135deg, #238636, #2ea043); color: white; border: none; padding: 8px 12px; border-radius: 6px; cursor: pointer; width: 100%; font-weight: 500; transition: all 0.2s ease;">🔍 Preview App</button>
         </div>
         
         <div class="editor-panel">
@@ -120,8 +124,8 @@
         <div class="preview-header">
             <span>Preview</span>
             <div>
-                <button onclick="openInNewTab()" style="background: #007acc; color: white; border: none; padding: 5px 10px; border-radius: 3px; cursor: pointer; margin-right: 10px;">Open in New Tab</button>
-                <button onclick="togglePreview()" style="background: none; border: none; color: white; cursor: pointer;">✕</button>
+                <button onclick="openInNewTab()" style="background: linear-gradient(135deg, #1f6feb, #388bfd); color: white; border: none; padding: 6px 12px; border-radius: 6px; cursor: pointer; margin-right: 12px; font-weight: 500; transition: all 0.2s ease;">Open in New Tab</button>
+                <button onclick="togglePreview()" style="background: #21262d; border: none; color: #f0f6fc; cursor: pointer; padding: 6px 8px; border-radius: 4px; transition: all 0.2s ease;">✕</button>
             </div>
         </div>
         <iframe id="previewFrame" class="preview-content"></iframe>
