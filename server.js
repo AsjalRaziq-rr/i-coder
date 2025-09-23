@@ -21,6 +21,8 @@ const codestralClient = new OpenAI({
 });
 
 let currentModel = 'groq'; // Default model
+let openRouterClient = null;
+let customConfig = { model: '', apiKey: '' };
 
 app.use(cors());
 app.use(express.json());
@@ -94,12 +96,21 @@ app.get('/api/files', async (req, res) => {
 
 // Switch LLM model
 app.post('/api/switch-model', (req, res) => {
-  const { model } = req.body;
-  if (model === 'groq' || model === 'codestral') {
+  const { model, apiKey, modelName } = req.body;
+  
+  if (model === 'openrouter' && apiKey && modelName) {
+    openRouterClient = new OpenAI({
+      baseURL: 'https://openrouter.ai/api/v1',
+      apiKey: apiKey
+    });
+    customConfig = { model: modelName, apiKey };
+    currentModel = 'openrouter';
+    res.json({ success: true, model: currentModel });
+  } else if (model === 'groq' || model === 'codestral') {
     currentModel = model;
     res.json({ success: true, model: currentModel });
   } else {
-    res.status(400).json({ error: 'Invalid model. Use "groq" or "codestral"' });
+    res.status(400).json({ error: 'Invalid model or missing config' });
   }
 });
 
@@ -173,11 +184,25 @@ async function getDirectoryTree(dir, basePath = '') {
 }
 
 async function processWithAI(message, currentFile, fileContent, files) {
-  const client = currentModel === 'codestral' ? codestralClient : groqClient;
-  const model = currentModel === 'codestral' ? 'codestral-latest' : 'llama-3.1-8b-instant';
-  const apiKeyEnv = currentModel === 'codestral' ? 'CODESTRAL_API_KEY' : 'GROQ_API_KEY';
+  let client, model, apiKeyEnv;
   
-  if (!process.env[apiKeyEnv]) {
+  if (currentModel === 'openrouter') {
+    client = openRouterClient;
+    model = customConfig.model;
+    apiKeyEnv = 'OPENROUTER_API_KEY';
+  } else if (currentModel === 'codestral') {
+    client = codestralClient;
+    model = 'codestral-latest';
+    apiKeyEnv = 'CODESTRAL_API_KEY';
+  } else {
+    client = groqClient;
+    model = 'llama-3.1-8b-instant';
+    apiKeyEnv = 'GROQ_API_KEY';
+  }
+  
+  if (currentModel === 'openrouter' && !customConfig.apiKey) {
+    return `OpenRouter requires API key and model name. Please configure them first.`;
+  } else if (currentModel !== 'openrouter' && !process.env[apiKeyEnv]) {
     return `I'm a coding assistant using ${currentModel.toUpperCase()}. You asked: "${message}". I need a ${apiKeyEnv} environment variable to provide AI responses.`;
   }
 

@@ -120,7 +120,13 @@
                 <select id="modelSelector" class="model-selector" onchange="switchModel()">
                     <option value="groq">Groq (Llama)</option>
                     <option value="codestral">Codestral</option>
+                    <option value="openrouter">OpenRouter (Custom)</option>
                 </select>
+                <div id="openRouterConfig" style="display: none; margin-top: 8px;">
+                    <input type="text" id="apiKeyInput" placeholder="API Key" style="width: 100%; margin-bottom: 4px; padding: 4px; background: #21262d; border: 1px solid #30363d; color: #f0f6fc; border-radius: 4px;">
+                    <input type="text" id="modelNameInput" placeholder="Model (e.g. anthropic/claude-3-sonnet)" style="width: 100%; padding: 4px; background: #21262d; border: 1px solid #30363d; color: #f0f6fc; border-radius: 4px;">
+                    <button onclick="configureOpenRouter()" style="margin-top: 4px; background: #238636; color: white; border: none; padding: 4px 8px; border-radius: 4px; cursor: pointer; font-size: 12px;">Configure</button>
+                </div>
                 <button onclick="toggleChat()" style="background: none; border: none; color: white; cursor: pointer; margin-left: 10px;">✕</button>
             </div>
         </div>
@@ -256,16 +262,43 @@
         async function switchModel() {
             const selector = document.getElementById('modelSelector');
             const model = selector.value;
+            const configDiv = document.getElementById('openRouterConfig');
+            
+            if (model === 'openrouter') {
+                configDiv.style.display = 'block';
+            } else {
+                configDiv.style.display = 'none';
+                try {
+                    await fetch('/api/switch-model', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ model })
+                    });
+                    addMessage(`Switched to ${model.toUpperCase()} model`, 'ai');
+                } catch (error) {
+                    addMessage(`Error switching model: ${error.message}`, 'ai');
+                }
+            }
+        }
+        
+        async function configureOpenRouter() {
+            const apiKey = document.getElementById('apiKeyInput').value;
+            const modelName = document.getElementById('modelNameInput').value;
+            
+            if (!apiKey || !modelName) {
+                addMessage('Please enter both API key and model name', 'ai');
+                return;
+            }
             
             try {
                 await fetch('/api/switch-model', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ model })
+                    body: JSON.stringify({ model: 'openrouter', apiKey, modelName })
                 });
-                addMessage(`Switched to ${model.toUpperCase()} model`, 'ai');
+                addMessage(`Configured OpenRouter with ${modelName}`, 'ai');
             } catch (error) {
-                addMessage(`Error switching model: ${error.message}`, 'ai');
+                addMessage(`Error configuring OpenRouter: ${error.message}`, 'ai');
             }
         }
         
