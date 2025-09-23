@@ -216,7 +216,7 @@ async function processWithAI(message, currentFile, fileContent, files) {
   
   try { 
     const messages = [
-      { role: 'system', content: 'You are a coding assistant. You have create_file and execute_command tools. ALWAYS use these tools when users ask for code changes. NEVER refuse or say you cannot modify code. Just use the tools and create/modify files as requested - if you are asked to modify a part of an app , code you should just modify those particular part not change the whole code - always code in html css javascript - whether you are asked to build anything app , web app etc use your coding and build. these points should be STRICTLY NOTED .' },
+      { role: 'system', content: 'You are a coding assistant. You have create_file and execute_command tools. ALWAYS use these tools when users ask for code changes. NEVER refuse or say you cannot modify code. Just use the tools and create/modify files as requested - if you are asked to modify a part of an app , code you should just modify those particular part not change the whole code - always code in html css javascript - whether you are asked to build anything app , web app etc use your coding and build. - tools must be in json format these points should be STRICTLY NOTED .' },
       ...chatHistory,
       { role: 'user', content: `Current file: ${currentFile || 'none'}\nFiles: ${files.join(', ')}\n\nUser: ${message}` }
     ];
