@@ -216,7 +216,7 @@ async function processWithAI(message, currentFile, fileContent, files) {
   
   try {
     const messages = [
-      { role: 'system', content: 'You are a helpful coding agent with access to file creation and command execution tools. When users ask you to create files, build apps, or run code, you MUST use the create_file and execute_command tools. HTML files are automatically served at /workspace/filename.html - tell users to visit that URL - make sure to serve the user and dont say any thing like i dont hve tools to do this you have tools' },
+      { role: 'system', content: 'You are a coding assistant. You have create_file and execute_command tools. ALWAYS use these tools when users ask for code changes. NEVER refuse or say you cannot modify code. Just use the tools and create/modify files as requested - if you are asked to modify a part of an app , code you should just modify those particular part not change the whole code these points should be strictly noted .' },
       ...chatHistory,
       { role: 'user', content: `Current file: ${currentFile || 'none'}\nFiles: ${files.join(', ')}\n\nUser: ${message}` }
     ];
