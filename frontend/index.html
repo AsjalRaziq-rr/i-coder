@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Code Editor with AI Chat</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/codemirror.min.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/codemirror.min.js"></script>
@@ -14,6 +14,17 @@
         
         .container { display: flex; height: 100vh; transition: all 0.3s ease; }
         .container.preview-open { margin-right: 50vw; }
+        
+        @media (max-width: 768px) {
+            .container { flex-direction: column; }
+            .file-explorer { width: 100%; height: 200px; border-right: none; border-bottom: 1px solid #30363d; }
+            .chat-panel { width: 100%; bottom: 0; right: 0; }
+            .terminal-panel { left: 0; right: 0; }
+            .preview-panel.open { width: 100vw; }
+            .container.preview-open { margin-right: 0; }
+            .chat-toggle { right: 24px; bottom: 90px; }
+            .terminal-toggle { right: 24px; bottom: 24px; }
+        }
         .editor-panel { flex: 1; display: flex; flex-direction: column; }
         .toolbar { background: #161b22; padding: 12px; border-bottom: 1px solid #30363d; box-shadow: 0 1px 3px rgba(0,0,0,0.3); }
         .file-tabs { display: flex; gap: 2px; }
@@ -38,7 +49,12 @@
         .terminal-panel { position: fixed; bottom: 0; left: 0; right: 0; height: 0; background: #0d1117; border-top: 1px solid #30363d; transition: height 0.3s ease; overflow: hidden; z-index: 998; box-shadow: 0 -4px 12px rgba(0,0,0,0.3); }
         .terminal-panel.open { height: 40vh; }
         
-        .chat-panel { position: fixed; bottom: 0; right: 0; width: 420px; height: 0; background: #161b22; border-left: 1px solid #30363d; transition: height 0.3s ease; overflow: hidden; z-index: 999; box-shadow: -4px 0 12px rgba(0,0,0,0.3); }
+        @media (max-width: 768px) {
+            .terminal-panel.open { height: 50vh; }
+            .chat-panel.open { height: 70vh; }
+        }
+        
+        .chat-panel { position: fixed; bottom: 0; right: 0; width: 420px; height: 0; background: #161b22; border-left: 1px solid #30363d; transition: height 0.3s ease; overflow: hidden; z-index: 999; box-shadow: -4px 0 12px rgba(0,0,0,0.3); max-width: calc(100vw - 20px); }
         .chat-panel.open { height: 60vh; }
         
         .terminal-header { background: #161b22; padding: 12px 16px; border-bottom: 1px solid #30363d; display: flex; justify-content: space-between; align-items: center; color: #f0f6fc; font-weight: 600; }
@@ -72,6 +88,10 @@
         
         .preview-panel { position: fixed; top: 0; right: 0; width: 0; height: 100vh; background: #0d1117; border-left: 1px solid #30363d; transition: width 0.3s ease; overflow: hidden; z-index: 1001; box-shadow: -4px 0 12px rgba(0,0,0,0.3); }
         .preview-panel.open { width: 50vw; }
+        
+        @media (max-width: 768px) {
+            .preview-panel.open { width: 100vw; left: 0; border-left: none; }
+        }
         .preview-header { background: #161b22; padding: 12px 16px; border-bottom: 1px solid #30363d; display: flex; justify-content: space-between; align-items: center; color: #f0f6fc; font-weight: 600; }
         .preview-content { width: 100%; height: calc(100vh - 60px); border: none; background: white; }
     </style>
@@ -391,12 +411,15 @@
                     div.style.paddingLeft = (indent * 15) + 'px';
                     
                     const nameSpan = document.createElement('span');
-                    nameSpan.textContent = file.name;
-                    nameSpan.onclick = () => {
-                        if (file.type === 'file') {
-                            loadFile(file.path);
-                        }
-                    };
+                    
+                    if (file.type === 'directory') {
+                        nameSpan.textContent = '📁 ' + file.name;
+                        nameSpan.style.cursor = 'pointer';
+                        nameSpan.onclick = () => toggleFolder(file.path);
+                    } else {
+                        nameSpan.textContent = '📄 ' + file.name;
+                        nameSpan.onclick = () => loadFile(file.path);
+                    }
                     
                     div.appendChild(nameSpan);
                     
@@ -412,12 +435,61 @@
                     container.appendChild(div);
                     
                     if (file.children) {
-                        renderFiles(file.children, indent + 1);
+                        const childContainer = document.createElement('div');
+                        childContainer.id = 'folder-' + file.path;
+                        childContainer.style.display = 'none';
+                        container.appendChild(childContainer);
+                        
+                        function renderChildren(children) {
+                            children.forEach(child => {
+                                const childDiv = document.createElement('div');
+                                childDiv.className = 'file-item';
+                                childDiv.style.paddingLeft = ((indent + 1) * 15) + 'px';
+                                
+                                const childSpan = document.createElement('span');
+                                if (child.type === 'directory') {
+                                    childSpan.textContent = '📁 ' + child.name;
+                                    childSpan.onclick = () => toggleFolder(child.path);
+                                } else {
+                                    childSpan.textContent = '📄 ' + child.name;
+                                    childSpan.onclick = () => loadFile(child.path);
+                                }
+                                
+                                childDiv.appendChild(childSpan);
+                                
+                                const childDeleteBtn = document.createElement('button');
+                                childDeleteBtn.className = 'delete-btn';
+                                childDeleteBtn.textContent = '×';
+                                childDeleteBtn.onclick = (e) => {
+                                    e.stopPropagation();
+                                    deleteFile(child.path);
+                                };
+                                childDiv.appendChild(childDeleteBtn);
+                                
+                                childContainer.appendChild(childDiv);
+                                
+                                if (child.children) {
+                                    const nestedContainer = document.createElement('div');
+                                    nestedContainer.id = 'folder-' + child.path;
+                                    nestedContainer.style.display = 'none';
+                                    childContainer.appendChild(nestedContainer);
+                                }
+                            });
+                        }
+                        
+                        renderChildren(file.children);
                     }
                 });
             }
             
             renderFiles(fileList);
+        }
+        
+        function toggleFolder(folderPath) {
+            const container = document.getElementById('folder-' + folderPath);
+            if (container) {
+                container.style.display = container.style.display === 'none' ? 'block' : 'none';
+            }
         }
         
         async function deleteFile(filePath) {
