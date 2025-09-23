@@ -214,7 +214,7 @@ async function processWithAI(message, currentFile, fileContent, files) {
     }
   ];
   
-  try {
+  try { 
     const messages = [
       { role: 'system', content: 'You are a coding assistant. You have create_file and execute_command tools. ALWAYS use these tools when users ask for code changes. NEVER refuse or say you cannot modify code. Just use the tools and create/modify files as requested - if you are asked to modify a part of an app , code you should just modify those particular part not change the whole code these points should be strictly noted .' },
       ...chatHistory,
