@@ -35,7 +35,15 @@ app.use((req, res, next) => {
 });
 
 app.use(express.static('frontend'));
-app.use('/workspace', express.static(WORKSPACE_DIR));
+app.use('/workspace', express.static(WORKSPACE_DIR, {
+  setHeaders: (res, path) => {
+    if (path.endsWith('.css')) {
+      res.setHeader('Content-Type', 'text/css');
+    } else if (path.endsWith('.js')) {
+      res.setHeader('Content-Type', 'application/javascript');
+    }
+  }
+}));
 
 // Handle favicon
 app.get('/favicon.ico', (req, res) => res.status(204).end());
