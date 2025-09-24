@@ -4,6 +4,9 @@ import { exec } from 'child_process';
 import { promises as fs } from 'fs';
 import path from 'path';
 import OpenAI from 'openai';
+import dotenv from 'dotenv';
+
+dotenv.config();
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -12,12 +15,12 @@ const chatHistory = [];
 
 const groqClient = new OpenAI({
   baseURL: 'https://api.groq.com/openai/v1',
-  apiKey: process.env.GROQ_API_KEY
+  apiKey: process.env.GROQ_API_KEY || 'dummy'
 });
 
 const codestralClient = new OpenAI({
   baseURL: 'https://codestral.mistral.ai/v1',
-  apiKey: process.env.CODESTRAL_API_KEY
+  apiKey: process.env.CODESTRAL_API_KEY || 'dummy'
 });
 
 let currentModel = 'groq'; // Default model
