@@ -163,6 +163,30 @@ app.post('/api/terminal', (req, res) => {
   });
 });
 
+// Download project as ZIP
+app.get('/api/download-project', async (req, res) => {
+  try {
+    const { exec } = await import('child_process');
+    const { promisify } = await import('util');
+    const execAsync = promisify(exec);
+    
+    // Create ZIP of workspace directory
+    await execAsync(`cd ${WORKSPACE_DIR} && zip -r ../workspace-project.zip . -x "node_modules/*" ".git/*" ".next/*"`);
+    
+    const zipPath = './workspace-project.zip';
+    res.download(zipPath, 'workspace-project.zip', (err) => {
+      if (!err) {
+        // Clean up zip file after download
+        setTimeout(() => {
+          try { fs.unlink(zipPath, () => {}); } catch (e) {}
+        }, 1000);
+      }
+    });
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to create project download' });
+  }
+});
+
 async function getDirectoryTree(dir, basePath = '') {
   const items = [];
   try {
@@ -252,7 +276,7 @@ async function processWithAI(message, currentFile, fileContent, files) {
   
   try { 
     const messages = [
-      { role: 'system', content: 'You are a coding assistant. You have create_file and execute_command tools. ALWAYS use these tools when users ask for code changes. NEVER refuse or say you cannot modify code. Just use the tools and create/modify files as requested - if you are asked to modify a part of an app , code you should just modify those particular part not change the whole code - always code in html css javascript - whether you are asked to build anything app , web app etc use your coding and build. - tools must be in json format these points should be STRICTLY NOTED .' },
+      { role: 'system', content: 'You are a coding assistant. You have create_file and execute_command tools. ALWAYS use these tools when users ask for code changes. NEVER refuse or say you cannot modify code. Just use the tools and create/modify files as requested - if you are asked to modify a part of an app , code you should just modify those particular part not change the whole code - always code in html css javascript - whether you are asked to build anything app , web app etc use your coding and build. - tools must be in json format - always start the dev server on port 3002 or other because port 8080 is in use these points should be STRICTLY NOTED .' },
       ...chatHistory,
       { role: 'user', content: `Current file: ${currentFile || 'none'}\nFiles: ${files.join(', ')}\n\nUser: ${message}` }
     ];
@@ -315,8 +339,30 @@ async function createFileFromAI(filename, content) {
 
 async function executeCommandFromAI(command) {
   return new Promise((resolve) => {
-    exec(command, { cwd: WORKSPACE_DIR }, (error, stdout, stderr) => {
-      resolve(stdout + stderr || 'Command completed');
+    // Modify dev server commands to use port 3002
+    let modifiedCommand = command;
+    if (command.includes('npm run dev') || command.includes('npm start')) {
+      if (!command.includes('--port') && !command.includes('-p')) {
+        modifiedCommand = command + ' --port 3002';
+      }
+    }
+    
+    exec(modifiedCommand, { cwd: WORKSPACE_DIR }, (error, stdout, stderr) => {
+      const output = stdout + stderr || 'Command completed';
+      
+      // Check if it's a dev server command and add auto-open marker
+      const isDevServer = command.includes('npm start') || 
+                         command.includes('npm run dev') ||
+                         command.includes('http.server') || 
+                         command.includes('serve') ||
+                         command.includes('python -m http.server') ||
+                         command.includes('python3 -m http.server');
+      
+      if (isDevServer) {
+        resolve(output + '\n\n🚀 Dev server started! [AUTO_OPEN:http://localhost:3002]');
+      } else {
+        resolve(output);
+      }
     });
   });
 }
