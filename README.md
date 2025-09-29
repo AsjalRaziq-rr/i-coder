@@ -40,8 +40,6 @@ npm install
 Create `.env` file:
 ```
 PORT=8080
-CODESTRAL_API_KEY=your_key_here
-GROQ_API_KEY=your_key_here
 ```
 
 3. **Start Server**
