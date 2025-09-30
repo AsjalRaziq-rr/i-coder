@@ -23,7 +23,7 @@ const codestralClient = new OpenAI({
   apiKey: process.env.CODESTRAL_API_KEY || 'dummy'
 });
 
-let currentModel = 'groq'; // Default model
+let currentModel = 'codestral'; // Default model
 let openRouterClient = null;
 let customConfig = { model: '', apiKey: '' };
 
@@ -32,7 +32,7 @@ app.use(express.json());
 
 // WebContainer requires cross-origin isolation
 app.use((req, res, next) => {
-  res.setHeader('Cross-Origin-Embedder-Policy', 'require-corp');
+  res.setHeader('Cross-Origin-Embedder-Policy', 'credentialless');
   res.setHeader('Cross-Origin-Opener-Policy', 'same-origin');
   next();
 });
@@ -109,16 +109,18 @@ app.get('/api/files', async (req, res) => {
 app.post('/api/switch-model', (req, res) => {
   const { model, apiKey, modelName } = req.body;
   
-  if (model === 'openrouter' && apiKey && modelName) {
+  if (model === 'codestral' && apiKey) {
+    // Update Codestral client with new API key
+    codestralClient.apiKey = apiKey;
+    currentModel = 'codestral';
+    res.json({ success: true, model: currentModel });
+  } else if (model === 'openrouter' && apiKey && modelName) {
     openRouterClient = new OpenAI({
       baseURL: 'https://openrouter.ai/api/v1',
       apiKey: apiKey
     });
     customConfig = { model: modelName, apiKey };
     currentModel = 'openrouter';
-    res.json({ success: true, model: currentModel });
-  } else if (model === 'groq' || model === 'codestral') {
-    currentModel = model;
     res.json({ success: true, model: currentModel });
   } else {
     res.status(400).json({ error: 'Invalid model or missing config' });
@@ -225,14 +227,10 @@ async function processWithAI(message, currentFile, fileContent, files) {
     client = openRouterClient;
     model = customConfig.model;
     apiKeyEnv = 'OPENROUTER_API_KEY';
-  } else if (currentModel === 'codestral') {
+  } else {
     client = codestralClient;
     model = 'codestral-latest';
     apiKeyEnv = 'CODESTRAL_API_KEY';
-  } else {
-    client = groqClient;
-    model = 'llama-3.1-8b-instant';
-    apiKeyEnv = 'GROQ_API_KEY';
   }
   
   if (currentModel === 'openrouter' && !customConfig.apiKey) {

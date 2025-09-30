@@ -110,6 +110,7 @@
             <button onclick="document.getElementById('fileUpload').click()" style="margin-top: 8px; background: linear-gradient(135deg, #7c3aed, #a855f7); color: white; border: none; padding: 8px 12px; border-radius: 6px; cursor: pointer; width: 100%; font-weight: 500; transition: all 0.2s ease;">📁 Upload Files</button>
             <button onclick="downloadProject()" style="margin-top: 8px; background: linear-gradient(135deg, #f59e0b, #f97316); color: white; border: none; padding: 8px 12px; border-radius: 6px; cursor: pointer; width: 100%; font-weight: 500; transition: all 0.2s ease;">💾 Download Project</button>
             <button onclick="previewApp()" style="margin-top: 8px; background: linear-gradient(135deg, #238636, #2ea043); color: white; border: none; padding: 8px 12px; border-radius: 6px; cursor: pointer; width: 100%; font-weight: 500; transition: all 0.2s ease;">🔍 Preview App</button>
+            <button onclick="previewWebContainer()" style="margin-top: 8px; background: linear-gradient(135deg, #f59e0b, #f97316); color: white; border: none; padding: 8px 12px; border-radius: 6px; cursor: pointer; width: 100%; font-weight: 500; transition: all 0.2s ease;">🌐 WebContainer Preview</button>
         </div>
         
         <div class="editor-panel">
@@ -147,10 +148,13 @@
             <span>AI Assistant</span>
             <div>
                 <select id="modelSelector" class="model-selector" onchange="switchModel()">
-                    <option value="groq">Groq (Llama)</option>
                     <option value="codestral">Codestral</option>
                     <option value="openrouter">OpenRouter (Custom)</option>
                 </select>
+                <div id="codestralConfig" style="display: none; margin-top: 6px; font-size: 12px;">
+                    <input type="text" id="codestralApiKey" placeholder="Codestral API Key" style="width: 100%; margin-bottom: 3px; padding: 3px; background: #21262d; border: 1px solid #30363d; color: #f0f6fc; border-radius: 3px; font-size: 11px;">
+                    <button onclick="configureCodestral()" style="margin-top: 3px; background: #238636; color: white; border: none; padding: 3px 6px; border-radius: 3px; cursor: pointer; font-size: 10px; width: 100%;">Set API Key</button>
+                </div>
                 <div id="openRouterConfig" style="display: none; margin-top: 6px; font-size: 12px;">
                     <input type="text" id="apiKeyInput" placeholder="API Key" style="width: 100%; margin-bottom: 3px; padding: 3px; background: #21262d; border: 1px solid #30363d; color: #f0f6fc; border-radius: 3px; font-size: 11px;">
                     <input type="text" id="modelNameInput" placeholder="Model (e.g. anthropic/claude-3-sonnet)" style="width: 100%; padding: 3px; background: #21262d; border: 1px solid #30363d; color: #f0f6fc; border-radius: 3px; font-size: 11px;">
@@ -175,6 +179,18 @@
             </div>
         </div>
         <iframe id="previewFrame" class="preview-content"></iframe>
+    </div>
+    
+    <div class="preview-panel" id="webcontainerPreview">
+        <div class="preview-header">
+            <span>WebContainer Preview</span>
+            <div>
+                <input type="text" id="webcontainerUrl" placeholder="Enter URL (e.g., http://localhost:3000)" style="background: #21262d; border: 1px solid #30363d; color: #f0f6fc; padding: 6px 12px; border-radius: 6px; margin-right: 8px; width: 250px;">
+                <button onclick="loadWebContainerUrl()" style="background: linear-gradient(135deg, #238636, #2ea043); color: white; border: none; padding: 6px 12px; border-radius: 6px; cursor: pointer; margin-right: 8px; font-weight: 500;">Load</button>
+                <button onclick="toggleWebContainerPreview()" style="background: #21262d; border: none; color: #f0f6fc; cursor: pointer; padding: 6px 8px; border-radius: 4px;">✕</button>
+            </div>
+        </div>
+        <iframe id="webcontainerFrame" class="preview-content"></iframe>
     </div>
 
     <script>
@@ -227,45 +243,84 @@
                     
                     const { WebContainer } = await import('https://unpkg.com/@webcontainer/api@latest/dist/index.js');
                     
-                    // Reuse existing instance or create new one
-                    let webcontainer = window.webcontainerInstance;
-                    if (!webcontainer) {
-                        webcontainer = await WebContainer.boot();
-                        window.webcontainerInstance = webcontainer;
-                    }
+                    // Create fresh instance each time
+                    output.textContent += 'Booting WebContainer...\n';
+                    const webcontainer = await WebContainer.boot();
+                    console.log('WebContainer booted:', webcontainer);
                     
                     // Copy current files to WebContainer
                     const filesResponse = await fetch('/api/files');
                     const { files } = await filesResponse.json();
                     
-                    // Mount files in WebContainer
+                    // Build proper file tree structure
                     const fileTree = {};
                     for (const file of files) {
                         if (file.type === 'file') {
                             const response = await fetch(`/api/files/${file.path}`);
                             const { content } = await response.json();
-                            fileTree[file.path] = { file: { contents: content } };
+                            
+                            // Create nested structure for paths
+                            const pathParts = file.path.split('/');
+                            let current = fileTree;
+                            
+                            for (let i = 0; i < pathParts.length - 1; i++) {
+                                if (!current[pathParts[i]]) {
+                                    current[pathParts[i]] = { directory: {} };
+                                }
+                                current = current[pathParts[i]].directory;
+                            }
+                            
+                            current[pathParts[pathParts.length - 1]] = {
+                                file: { contents: content }
+                            };
                         }
                     }
                     
+                    console.log('Mounting files:', fileTree);
                     await webcontainer.mount(fileTree);
+                    output.textContent += 'Files mounted successfully\n';
                     
-                    // Start dev server
-                    if (command.includes('npm start')) {
-                        await webcontainer.spawn('npm', ['start']);
-                    } else {
-                        await webcontainer.spawn('python3', ['-m', 'http.server', '8000']);
-                    }
-                    
-                    // Show WebContainer URL
+                    // Set up server-ready listener BEFORE spawning
                     webcontainer.on('server-ready', (port, url) => {
                         output.textContent += `Server running at: ${url}\n`;
-                        output.textContent += `Click to open: ${url}\n`;
+                        output.textContent += `Loading in WebContainer Preview...\n`;
                         output.scrollTop = output.scrollHeight;
+                        
+                        // Auto-load in WebContainer preview
+                        if (url && url.startsWith('http')) {
+                            document.getElementById('webcontainerUrl').value = url;
+                            document.getElementById('webcontainerFrame').src = url;
+                        }
+                        
+                        // Auto-open WebContainer preview panel
+                        previewWebContainer();
                     });
+                    
+                    // Start dev server and capture output
+                    const process = await webcontainer.spawn('npm', ['start']);
+                    output.textContent += 'Dev server process started\n';
+                    
+                    // Stream process output for manual URL detection
+                    process.output.pipeTo(new WritableStream({
+                        write(data) {
+                            const text = new TextDecoder().decode(data);
+                            output.textContent += text;
+                            output.scrollTop = output.scrollHeight;
+                            
+                            // Manual URL detection as fallback
+                            const urlMatch = text.match(/http:\/\/localhost:\d+/);
+                            if (urlMatch) {
+                                const url = urlMatch[0];
+                                document.getElementById('webcontainerUrl').value = url;
+                                document.getElementById('webcontainerFrame').src = url;
+                                previewWebContainer();
+                            }
+                        }
+                    }));
                     
                 } catch (error) {
                     output.textContent += `WebContainer Error: ${error.message}\n`;
+                    console.error('WebContainer Error:', error);
                     output.scrollTop = output.scrollHeight;
                 }
             } else {
@@ -291,22 +346,37 @@
         async function switchModel() {
             const selector = document.getElementById('modelSelector');
             const model = selector.value;
-            const configDiv = document.getElementById('openRouterConfig');
+            const codestralConfig = document.getElementById('codestralConfig');
+            const openRouterConfig = document.getElementById('openRouterConfig');
             
-            if (model === 'openrouter') {
-                configDiv.style.display = 'block';
-            } else {
-                configDiv.style.display = 'none';
-                try {
-                    await fetch('/api/switch-model', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ model })
-                    });
-                    addMessage(`Switched to ${model.toUpperCase()} model`, 'ai');
-                } catch (error) {
-                    addMessage(`Error switching model: ${error.message}`, 'ai');
-                }
+            // Hide all configs first
+            codestralConfig.style.display = 'none';
+            openRouterConfig.style.display = 'none';
+            
+            if (model === 'codestral') {
+                codestralConfig.style.display = 'block';
+            } else if (model === 'openrouter') {
+                openRouterConfig.style.display = 'block';
+            }
+        }
+        
+        async function configureCodestral() {
+            const apiKey = document.getElementById('codestralApiKey').value;
+            
+            if (!apiKey) {
+                addMessage('Please enter Codestral API key', 'ai');
+                return;
+            }
+            
+            try {
+                await fetch('/api/switch-model', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ model: 'codestral', apiKey })
+                });
+                addMessage('Codestral API key configured successfully', 'ai');
+            } catch (error) {
+                addMessage(`Error configuring Codestral: ${error.message}`, 'ai');
             }
         }
         
@@ -638,6 +708,61 @@
             if (frame.src) {
                 window.open(frame.src, '_blank');
             }
+        }
+        
+        function previewWebContainer() {
+            const panel = document.getElementById('webcontainerPreview');
+            const container = document.querySelector('.container');
+            
+            panel.classList.add('open');
+            container.classList.add('preview-open');
+        }
+        
+        function toggleWebContainerPreview() {
+            const panel = document.getElementById('webcontainerPreview');
+            const container = document.querySelector('.container');
+            
+            panel.classList.toggle('open');
+            container.classList.toggle('preview-open');
+        }
+        
+        function loadWebContainerUrl() {
+            const urlInput = document.getElementById('webcontainerUrl');
+            const frame = document.getElementById('webcontainerFrame');
+            let url = urlInput.value.trim();
+            
+            // Use default if empty
+            if (!url) {
+                url = 'http://localhost:3000';
+                urlInput.value = url;
+            }
+            
+            if (url.startsWith('http')) {
+                frame.src = url;
+            } else {
+                console.error('Invalid URL:', url);
+                alert('Please enter a valid URL starting with http:// or https://');
+            }
+        }
+        
+        // Auto-detect dev server URLs from terminal output
+        function detectDevServerUrl(output) {
+            const urlPatterns = [
+                /http:\/\/localhost:\d+/g,
+                /https:\/\/localhost:\d+/g,
+                /Local:\s+(http:\/\/localhost:\d+)/g,
+                /Network:\s+(http:\/\/\d+\.\d+\.\d+\.\d+:\d+)/g
+            ];
+            
+            for (const pattern of urlPatterns) {
+                const matches = output.match(pattern);
+                if (matches) {
+                    const url = matches[0].replace('Local: ', '').replace('Network: ', '');
+                    document.getElementById('webcontainerUrl').value = url;
+                    return url;
+                }
+            }
+            return null;
         }
         
         async function uploadFiles(event) {
